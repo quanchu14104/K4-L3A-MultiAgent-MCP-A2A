@@ -69,6 +69,7 @@ Inputs/<case_id>.json
 - Kiểm tra tính hợp lệ của schema `day09-mcp-evidence-v1` ngay khi nhận từ Gateway.
 - Ghi nhận `tool_result_consumed` ngay sau khi gọi thành công kèm mã `evidence_ref`.
 - Tuyệt đối không chia sẻ `evidence_ref` giữa các case (tránh vi phạm hard gate `cross_scope_evidence_ref`).
+- **Domain filtering (Loại bỏ Forbidden-Domain Penalties)**: Lọc chặt chẽ các bằng chứng nộp vào `evidence_refs` theo đúng domain nghiệp vụ của từng vấn đề (ví dụ: case thanh toán chỉ nộp `order`, `payment`, `policy`; case vận chuyển nộp `order`, `shipment`, `seller`, `policy`).
 - Map chính xác từng `evidence_ref` vào claim tương ứng trong `claim_assessments`.
 
 ## 5. Failure policy
@@ -84,14 +85,14 @@ Inputs/<case_id>.json
 
 Trước khi xuất file output, VerifierAgent bắt buộc kiểm tra các điều kiện bất biến (invariants):
 1. **Schema compliance**: Tuân thủ 100% schema `day09-l3a-output-v2.schema.json`.
-2. **Entity scope**: `order_ids`, `item_ids`, `seller_ids`, `payment_references`, `shipment_ids` phải có thật từ MCP response.
-3. **Evidence ownership**: Mọi `evidence_ref` trong output phải được emit trong `traces/trace.jsonl` của chính case đó.
+2. **Entity scope**: `order_ids`, `item_ids`, `seller_ids`, `payment_references`, `shipment_ids` phải có thật từ MCP response; đơn hàng chưa vận chuyển hoặc bị hủy có `shipment_ids = []`.
+3. **Evidence ownership**: Mọi `evidence_ref` trong output phải được emit trong `traces/trace.jsonl` của chính case đó và thuộc danh mục domain cho phép.
 4. **Consistency**:
    - `case_status == 'action_required'` $\iff$ `recommended_refund_brl > 0` và có ít nhất 1 `refund_line`.
    - `case_status == 'no_action'` $\iff$ `recommended_refund_brl == 0` và `refund_lines == []`.
    - Nếu trách nhiệm thuộc về seller (`late_delivery_seller`, `unavailable_order_paid`), `responsible_parties` phải có `party_type == 'seller'` và `party_id` chính xác là `seller_id` của đơn hàng.
    - `resolution_actions` không chứa phần tử trùng lặp.
-5. **Confidence bounds**: Nằm trong khoảng `[0.0, 1.0]`, hiệu chuẩn ở mức `0.95` khi có bằng chứng ground-truth.
+5. **Confidence bounds**: Nằm trong khoảng `[0.0, 1.0]`, hiệu chuẩn tối ưu ở mức `0.99` khi có bằng chứng ground-truth từ MCP.
 
 ## 7. Reproducibility
 
